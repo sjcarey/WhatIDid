@@ -42,8 +42,11 @@ cli.py        argparse front end: run, log, today, week, summary, show, serve, a
   midnight that fall inside the window; unaligned mode uses window-start + k·N. With
   `prompt_at_window_end` a final prompt is added at each window close.
 * A check-in at time *t* covers `[t − N, t]`, extended back to the previous check-in if prompts
-  were missed, but clamped to the start of the current window (no counting across lunch), and
+  were missed, but clamped to the start of the current window (no counting across a break between windows), and
   never overlapping the previous entry.
+* Default is a single 09:00–17:30 window; lunch is logged like any other item and dropped from
+  summaries via `summary.exclude_tags` (default `["lunch"]`), because midday meetings with
+  partners in other time zones make a fixed lunch gap unreliable.
 * If the machine slept through a prompt and wakes outside working hours, that prompt is skipped.
 * If an entry covering a slot already exists (e.g. logged from the phone), the desktop prompt is
   suppressed.

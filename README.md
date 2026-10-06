@@ -38,7 +38,11 @@ whatidid next                    # upcoming prompt times under the current setti
 * Untagged items can be auto-tagged by keyword rules and tags can be aliased (see `[tags]`).
 * In the dialog: **Save** (⌘/Ctrl+Enter), **Same as last**, **Snooze**, **Skip** (Esc).
   If you skip or a prompt times out, the next check-in automatically covers the gap
-  (but never reaches back across a break between working windows, e.g. lunch).
+  (but never reaches back across a break between working windows).
+* **Lunch/breaks:** the default is one continuous working window, so just log `lunch` (or tag it
+  `#lunch`) when it happens. Anything in `summary.exclude_tags` (default `["lunch"]`) is left out of
+  the summary lists and totals and shown on a single "Not counted" line. If your lunch is fixed,
+  use two windows instead, e.g. `--hours 09:00-12:00,13:00-17:30`.
 
 ## Controlling behaviour
 
@@ -47,7 +51,7 @@ Precedence: **built-in defaults < parameter file < command-line flags**.
 | Setting | Parameter file | CLI |
 |---|---|---|
 | Minutes between prompts | `schedule.interval_minutes = 30` | `-i 20` |
-| Working windows | `schedule.work_hours = ["09:00-12:00","13:00-17:30"]` | `--hours 08:30-12:00,13:00-17:00` |
+| Working windows | `schedule.work_hours = ["09:00-17:30"]` | `--hours 08:30-12:00,13:00-17:00` |
 | Working days | `schedule.work_days = "Mon-Fri"` | `--days Mon-Thu` |
 | Clock-aligned prompts (:00/:30) | `schedule.align_to_clock = true` | `--align` / `--no-align` |
 | Prompt style | `prompt.mode = "auto"` | `--mode gui\|osascript\|terminal\|notify` |

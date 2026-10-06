@@ -69,8 +69,8 @@ def build_activities(entries: list[Entry], cfg: dict) -> list[Activity]:
         # An item that is only #tags (e.g. "#neos") tags every other item in the entry.
         entry_tags = [t for i in e.items if not clean_text(i, keep_empty=True) for t in item_tags(i, cfg)]
         items = [i for i in e.items if clean_text(i, keep_empty=True)]
-        if not items:
-            continue
+        if not items:  # the whole check-in is just tags, e.g. "#lunch": keep it as an item
+            items, entry_tags = e.items, []
         share = e.minutes / len(items)
         for raw in items:
             tags = item_tags(raw, cfg) or entry_tags
@@ -89,6 +89,32 @@ def build_activities(entries: list[Entry], cfg: dict) -> list[Activity]:
                 acts.append(match)
             match.add(share, e.end.date())
     return acts
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def is_excluded(a: "Activity", cfg: dict) -> bool:
+    """Items tagged (or simply named) with a summary.exclude_tags entry, e.g. lunch."""
+    ex = cfg["summary"]["exclude_tags"]
+    return a.tag in ex or a.key in ex
+
+
+def split_excluded(acts: list["Activity"], cfg: dict) -> tuple[list["Activity"], list["Activity"]]:
+    kept = [a for a in acts if not is_excluded(a, cfg)]
+    return kept, [a for a in acts if is_excluded(a, cfg)]
+
+
+def _excluded_line(excl: list["Activity"], cfg: dict) -> list[str]:
+    if not excl:
+        return []
+    ex = cfg["summary"]["exclude_tags"]
+    by: dict[str, float] = {}
+    for a in excl:
+        label = a.tag if a.tag in ex else a.key
+        by[label] = by.get(label, 0) + a.minutes
+    return ["_Not counted: " + ", ".join(f"{k} {fmt_minutes(m)}" for k, m in by.items()) + "_", ""]
 
 
 def group(acts: list[Activity], cfg: dict) -> list[tuple[str, float, list[Activity]]]:
@@ -125,9 +151,9 @@ def daily(entries: list[Entry], day: date, cfg: dict, fmt: str | None = None, ti
     timeline = cfg["summary"]["timeline"] if timeline is None else timeline
     show_time = cfg["summary"]["show_time"]
     es = [e for e in entries if e.end.date() == day]
-    acts = build_activities(es, cfg)
+    acts, excl = split_excluded(build_activities(es, cfg), cfg)
     groups = group(acts, cfg)
-    total = sum(e.minutes for e in es)
+    total = sum(a.minutes for a in acts)
 
     if fmt == "json":
         return json.dumps(
@@ -135,6 +161,7 @@ def daily(entries: list[Entry], day: date, cfg: dict, fmt: str | None = None, ti
                 "date": day.isoformat(),
                 "total_minutes": round(total, 1),
                 "checkins": len(es),
+                "excluded": [_act_json(a) for a in excl],
                 "groups": [
                     {"tag": t, "minutes": round(m, 1), "items": [_act_json(a) for a in v]} for t, m, v in groups
                 ],
@@ -150,7 +177,8 @@ def daily(entries: list[Entry], day: date, cfg: dict, fmt: str | None = None, ti
         L.append("_No check-ins recorded._")
         return _finish(L, fmt)
     span = f"{es[0].start:%H:%M}–{es[-1].end:%H:%M}"
-    L += [f"_{fmt_minutes(total)} logged across {len(es)} check-ins ({span})_", ""]
+    L += [f"_{fmt_minutes(total)} logged across {_plural(len(es), 'check-in')} ({span})_", ""]
+    L += _excluded_line(excl, cfg)
     for tag, mins, items in groups:
         L.append(f"## {tag}" + (f" ({fmt_minutes(mins)})" if show_time else ""))
         for a in items:
@@ -176,9 +204,9 @@ def weekly(entries: list[Entry], any_day: date, cfg: dict, fmt: str | None = Non
     top_n = int(cfg["summary"]["top_per_day"])
     first, last = week_bounds(any_day)
     es = [e for e in entries if first <= e.end.date() <= last]
-    acts = build_activities(es, cfg)
+    acts, excl = split_excluded(build_activities(es, cfg), cfg)
     groups = group(acts, cfg)
-    total = sum(e.minutes for e in es)
+    total = sum(a.minutes for a in acts)
     days = sorted({e.end.date() for e in es})
     y, w, _ = first.isocalendar()
 
@@ -190,6 +218,7 @@ def weekly(entries: list[Entry], any_day: date, cfg: dict, fmt: str | None = Non
                 "to": last.isoformat(),
                 "total_minutes": round(total, 1),
                 "days": [d.isoformat() for d in days],
+                "excluded": [_act_json(a) for a in excl],
                 "groups": [
                     {"tag": t, "minutes": round(m, 1), "items": [_act_json(a) for a in v]} for t, m, v in groups
                 ],
@@ -201,7 +230,8 @@ def weekly(entries: list[Entry], any_day: date, cfg: dict, fmt: str | None = Non
     if not es:
         L.append("_No check-ins recorded this week._")
         return _finish(L, fmt)
-    L += [f"_{fmt_minutes(total)} logged over {len(days)} day(s)_", ""]
+    L += [f"_{fmt_minutes(total)} logged over {_plural(len(days), 'day')}_", ""]
+    L += _excluded_line(excl, cfg)
     for tag, mins, items in groups:
         L.append(f"## {tag}" + (f" ({fmt_minutes(mins)})" if show_time else ""))
         for a in items:
@@ -215,8 +245,8 @@ def weekly(entries: list[Entry], any_day: date, cfg: dict, fmt: str | None = Non
     L.append("## Day by day")
     for d in days:
         day_es = [e for e in es if e.end.date() == d]
-        day_acts = sorted(build_activities(day_es, cfg), key=lambda a: -a.minutes)
-        mins = sum(e.minutes for e in day_es)
+        day_acts = sorted(split_excluded(build_activities(day_es, cfg), cfg)[0], key=lambda a: -a.minutes)
+        mins = sum(a.minutes for a in day_acts)
         head = f"- **{d:%a %m-%d}**" + (f" ({fmt_minutes(mins)})" if show_time else "") + ": "
         L.append(head + "; ".join(a.text for a in day_acts[:top_n]) + (" …" if len(day_acts) > top_n else ""))
     L.append("")

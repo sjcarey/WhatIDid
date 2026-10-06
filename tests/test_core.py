@@ -40,7 +40,14 @@ def test_file_then_cli_precedence(tmp_path):
 
 
 # ---------------------------------------------------------------- schedule
+def test_default_is_one_continuous_window(cfg):
+    times = [t.strftime("%H:%M") for t in schedule.prompt_times_for_day(MON, cfg, TZ)]
+    assert times[0] == "09:30" and "12:30" in times and "13:00" in times and times[-1] == "17:30"
+    assert schedule.next_prompt_time(dt(MON, "12:36"), cfg) == dt(MON, "13:00")
+
+
 def test_prompt_times_aligned(cfg):
+    cfg["schedule"]["_windows"] = [(540, 720), (780, 1050)]  # 09:00-12:00, 13:00-17:30
     times = [t.strftime("%H:%M") for t in schedule.prompt_times_for_day(MON, cfg, TZ)]
     assert times[0] == "09:30" and "12:00" in times and "12:30" not in times
     assert "13:30" in times and times[-1] == "17:30"
@@ -61,6 +68,7 @@ def test_next_prompt_rolls_over_weekend(cfg):
 
 
 def test_period_start(cfg):
+    cfg["schedule"]["_windows"] = [(540, 720), (780, 1050)]
     end = dt(MON, "11:00")
     assert schedule.period_start(end, None, cfg) == dt(MON, "10:30")
     assert schedule.period_start(end, dt(MON, "09:30"), cfg) == dt(MON, "09:30")  # missed prompts
@@ -161,3 +169,14 @@ def test_tag_only_item_applies_to_entry(cfg, store):
     store.append(Entry(dt(MON, "09:00"), dt(MON, "10:00"), ["#neos", "standup", "wrote plan #other"]))
     acts = {a.text: a.tag for a in summarize.build_activities(store.entries(MON), cfg)}
     assert acts == {"standup": "neo-surveyor", "wrote plan": "other"}
+
+
+@pytest.mark.parametrize("lunch", ["lunch", "Lunch.", "#lunch", "sandwich #lunch"])
+def test_lunch_excluded(cfg, store, lunch):
+    store.append(Entry(dt(MON, "11:30"), dt(MON, "12:00"), ["telecon with partners"]))
+    store.append(Entry(dt(MON, "12:00"), dt(MON, "12:30"), [lunch]))
+    d = summarize.daily(store.entries(MON), MON, cfg)
+    assert d.count("unch") == 1 and "_Not counted:" in d and "30m logged across 2 check-ins" in d
+    a, b = summarize.week_bounds(MON)
+    w = summarize.weekly(store.entries(a, b), MON, cfg)
+    assert "30m logged over 1 day_" in w and "(30m): telecon with partners" in w

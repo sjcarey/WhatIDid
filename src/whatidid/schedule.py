@@ -77,7 +77,7 @@ def period_start(end: datetime, last_end: datetime | None, cfg: dict) -> datetim
 
     Normally ``end - interval``.  If earlier prompts were missed today, extend back to
     the previous check-in, but never across the start of the current working window
-    (so lunch breaks aren't counted).
+    (so a gap between windows isn't counted).
     """
     step = timedelta(minutes=cfg["schedule"]["interval_minutes"])
     start = end - step

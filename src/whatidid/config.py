@@ -21,7 +21,7 @@ DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DEFAULTS: dict[str, Any] = {
     "schedule": {
         "interval_minutes": 30,
-        "work_hours": ["09:00-12:00", "13:00-17:30"],
+        "work_hours": ["09:00-17:30"],
         "work_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
         "align_to_clock": True,
         "prompt_at_window_end": True,
@@ -46,6 +46,7 @@ DEFAULTS: dict[str, Any] = {
         "fuzzy_threshold": 0.85,
         "top_per_day": 5,
         "untagged_label": "Other",
+        "exclude_tags": ["lunch"],  # not counted in totals or listed in summaries
         "llm": False,
         "llm_model": "claude-sonnet-4-5",
         "llm_max_tokens": 1500,
@@ -236,6 +237,8 @@ def validate(cfg: dict) -> dict:
         cfg["summary"]["format"] = "markdown"
     if cfg["summary"]["format"] not in ("markdown", "text", "json"):
         raise ConfigError("summary.format must be markdown|text|json")
+    ex = cfg["summary"]["exclude_tags"]
+    cfg["summary"]["exclude_tags"] = [str(t).lower().lstrip("#") for t in ([ex] if isinstance(ex, str) else ex)]
     cfg["tags"]["aliases"] = {str(k).lower(): str(v).lower() for k, v in cfg["tags"]["aliases"].items()}
     cfg["tags"]["keywords"] = {
         str(k).lower(): [kw if isinstance(kw, str) else str(kw) for kw in (v if isinstance(v, list) else [v])]

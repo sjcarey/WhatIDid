@@ -4,10 +4,10 @@
 
 [schedule]
 interval_minutes = 30                         # N: minutes between prompts
-work_hours = ["09:00-12:00", "13:00-17:30"]   # one or more windows; gaps (lunch) are not prompted
+work_hours = ["09:00-17:30"]   # one or more windows, e.g. ["09:00-12:00", "13:00-17:30"] to skip a fixed lunch
 work_days = ["Mon", "Tue", "Wed", "Thu", "Fri"]  # or "Mon-Fri"
 align_to_clock = true          # prompt at :00/:30 rather than N min after the window opens
-prompt_at_window_end = true    # extra prompt when each window closes (e.g. 12:00, 17:30)
+prompt_at_window_end = true    # extra prompt when each window closes (only matters if it is off the :00/:30 grid)
 snooze_minutes = 5
 holidays = []                  # ["2026-11-26", "2026-12-25"]
 
@@ -29,6 +29,7 @@ timeline = false       # daily: append the raw check-in timeline
 fuzzy_threshold = 0.85 # merge near-duplicate items (1.0 = exact matches only)
 top_per_day = 5        # weekly "Day by day" items per day
 untagged_label = "Other"
+exclude_tags = ["lunch"]  # items tagged #lunch (or just "lunch") are left out of totals and lists
 llm = false            # polish summaries with Claude by default (needs ANTHROPIC_API_KEY)
 llm_model = "claude-sonnet-4-5"
 llm_max_tokens = 1500
