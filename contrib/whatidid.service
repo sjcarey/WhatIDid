@@ -1,0 +1,12 @@
+# ~/.config/systemd/user/whatidid.service ; then: systemctl --user enable --now whatidid
+[Unit]
+Description=WhatIDid periodic work-log prompter
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/whatidid run --serve
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

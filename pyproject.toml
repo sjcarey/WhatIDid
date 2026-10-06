@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whatidid"
+version = "0.1.0"
+description = "Periodic 'what did you just do?' prompts with daily and weekly status summaries"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Sean Carey", email = "carey@ipac.caltech.edu" }]
+license = { text = "BSD-3-Clause" }
+dependencies = ["tomli>=1.1; python_version < '3.11'"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+whatidid = "whatidid.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+whatidid = ["example_config.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,56 @@
+# WhatIDid parameter file (TOML).
+# Location: ~/.config/whatidid/config.toml, or $WHATIDID_CONFIG, or `whatidid -c FILE`.
+# Precedence: built-in defaults < this file < command-line flags (-i, --hours, -o key=val ...).
+
+[schedule]
+interval_minutes = 30                         # N: minutes between prompts
+work_hours = ["09:00-12:00", "13:00-17:30"]   # one or more windows; gaps (lunch) are not prompted
+work_days = ["Mon", "Tue", "Wed", "Thu", "Fri"]  # or "Mon-Fri"
+align_to_clock = true          # prompt at :00/:30 rather than N min after the window opens
+prompt_at_window_end = true    # extra prompt when each window closes (e.g. 12:00, 17:30)
+snooze_minutes = 5
+holidays = []                  # ["2026-11-26", "2026-12-25"]
+
+[prompt]
+mode = "auto"          # auto | gui (Tk dialog) | osascript (macOS dialog) | terminal | notify (web/phone only)
+timeout_minutes = 10   # dialog closes unanswered after this; the next check-in covers the gap
+sound = true
+
+[storage]
+data_dir = ""          # default ~/.local/share/whatidid ; point at a synced folder to merge devices
+compression = "xz"     # xz | gz | bz2 for weekly archives
+archive_after_days = 1 # raw day files older than this are compressed (1 = everything before today)
+host = ""              # label for this machine (default: hostname)
+
+[summary]
+format = "markdown"    # markdown | text | json
+show_time = true       # show estimated time per item/tag
+timeline = false       # daily: append the raw check-in timeline
+fuzzy_threshold = 0.85 # merge near-duplicate items (1.0 = exact matches only)
+top_per_day = 5        # weekly "Day by day" items per day
+untagged_label = "Other"
+llm = false            # polish summaries with Claude by default (needs ANTHROPIC_API_KEY)
+llm_model = "claude-sonnet-4-5"
+llm_max_tokens = 1500
+llm_style = "Rewrite as a concise weekly status update for my team: short bullet points grouped by project, past tense, no time estimates unless notable."
+
+[tags]
+# Items are grouped by their first #tag. Aliases normalise tags; keywords auto-tag untagged text.
+[tags.aliases]
+# neos = "neo-surveyor"
+
+[tags.keywords]
+# "neo-surveyor" = ["NEOS", "surveyor"]
+# meetings = ["meeting", "telecon", "standup", "1:1"]
+# email = ["email", "inbox", "slack"]
+
+[web]
+host = "127.0.0.1"     # "0.0.0.0" to reach it from your phone on the LAN/VPN (token then required)
+port = 8765
+token = ""             # empty + non-local host => random token saved in data_dir/web_token
+
+[notify]
+desktop = true         # macOS Notification Center / Linux notify-send (used by mode = "notify")
+ntfy_url = ""          # e.g. "https://ntfy.sh/<long-random-topic>" for phone push nudges
+click_url = ""         # URL the push opens, e.g. "http://my-mac.local:8765/?t=TOKEN"
+command = ""           # shell hook; gets WHATIDID_TITLE / _MESSAGE / _START / _END
