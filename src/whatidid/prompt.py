@@ -60,56 +60,45 @@ def ask(cfg: dict, start: datetime, end: datetime, last_items: list[str] | None 
 
 # ------------------------------------------------------------------ tkinter
 def ask_gui(cfg, start, end, last_items, timeout) -> PromptResult:
-    import tkinter as tk
+    """Show the Tk dialog in a child process (see dialog.py for why)."""
+    import json
 
-    result = PromptResult("timeout")
-    root = tk.Tk()
-    root.title("WhatIDid")
-    root.attributes("-topmost", True)
-    root.resizable(True, True)
-    frm = tk.Frame(root, padx=12, pady=10)
-    frm.pack(fill="both", expand=True)
-    tk.Label(frm, text=_question(start, end), font=("TkDefaultFont", 13, "bold")).pack(anchor="w")
-    tk.Label(frm, text=HINT, fg="#666").pack(anchor="w", pady=(0, 6))
-    txt = tk.Text(frm, width=60, height=7, wrap="word", undo=True)
-    txt.pack(fill="both", expand=True)
-    btns = tk.Frame(frm, pady=8)
-    btns.pack(fill="x")
+    args = json.dumps({
+        "question": _question(start, end),
+        "hint": HINT,
+        "snooze_minutes": cfg["schedule"]["snooze_minutes"],
+        "last_items": last_items or [],
+        "timeout_s": timeout,
+        "sound": cfg["prompt"]["sound"],
+    })
+    try:
+        out = subprocess.run(
+            [sys.executable, "-m", "whatidid.dialog", args],
+            capture_output=True, text=True,
+            timeout=(timeout + 60) if timeout > 0 else None,
+            env=_child_env(),
+        )
+    except subprocess.TimeoutExpired:
+        return PromptResult("timeout")
+    except OSError as e:
+        print(f"whatidid: could not start dialog ({e})", file=sys.stderr)
+        return PromptResult("timeout")
+    lines = [ln for ln in out.stdout.splitlines() if ln.strip().startswith("{")]
+    if out.returncode != 0 or not lines:
+        print(f"whatidid: dialog failed: {out.stderr.strip()[-400:]}", file=sys.stderr)
+        return PromptResult("timeout")
+    res = json.loads(lines[-1])
+    return PromptResult(res.get("action", "timeout"), res.get("text", ""))
 
-    def finish(action: str, text: str = "") -> None:
-        result.action, result.text = action, text
-        root.destroy()
 
-    def save(_=None):
-        text = txt.get("1.0", "end").strip()
-        if text:
-            finish("save", text)
-        return "break"
+def _child_env() -> dict:
+    """Make sure the child can import this package even when run from a source tree."""
+    import whatidid
 
-    snooze = cfg["schedule"]["snooze_minutes"]
-    tk.Button(btns, text="Save  (⌘/Ctrl+Enter)", command=save, default="active").pack(side="right")
-    tk.Button(btns, text=f"Snooze {snooze}m", command=lambda: finish("snooze")).pack(side="right", padx=4)
-    tk.Button(btns, text="Skip", command=lambda: finish("skip")).pack(side="right")
-    if last_items:
-        tk.Button(
-            btns, text="Same as last", command=lambda: (txt.delete("1.0", "end"), txt.insert("1.0", "\n".join(last_items)))
-        ).pack(side="left")
-    for seq in ("<Control-Return>", "<Command-Return>"):
-        try:
-            root.bind(seq, save)
-        except tk.TclError:
-            pass
-    root.bind("<Escape>", lambda _e: finish("skip"))
-    root.protocol("WM_DELETE_WINDOW", lambda: finish("skip"))
-    if timeout > 0:
-        root.after(int(timeout * 1000), lambda: finish("timeout"))
-    if cfg["prompt"]["sound"]:
-        root.bell()
-    root.lift()
-    root.focus_force()
-    txt.focus_set()
-    root.mainloop()
-    return result
+    env = dict(os.environ)
+    pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(whatidid.__file__)))
+    env["PYTHONPATH"] = pkg_parent + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    return env
 
 
 # ------------------------------------------------------------- macOS dialog

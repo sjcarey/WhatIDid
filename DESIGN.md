@@ -28,7 +28,8 @@
 config.py     defaults, TOML loading, CLI overrides, validation (hours/days parsing)
 schedule.py   working windows, prompt times (aligned or not), period covered by a check-in
 store.py      Entry model, item parsing, append/read, compressed weekly archiving
-prompt.py     Tk / osascript / terminal prompts; desktop, ntfy and shell-hook notifications
+prompt.py     prompt dispatch (Tk / osascript / terminal); desktop, ntfy and shell-hook notifications
+dialog.py     Tk dialog, run as a short-lived child process so the window closes cleanly on macOS
 runner.py     long-running loop: sleep → prompt → save; snooze; archive on day rollover
 summarize.py  activities (tag, fuzzy merge, time), daily & weekly markdown/text/json
 llm.py        optional Anthropic Messages API polish (urllib, no SDK)

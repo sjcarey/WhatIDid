@@ -180,3 +180,21 @@ def test_lunch_excluded(cfg, store, lunch):
     a, b = summarize.week_bounds(MON)
     w = summarize.weekly(store.entries(a, b), MON, cfg)
     assert "30m logged over 1 day_" in w and "(30m): telecon with partners" in w
+
+
+def test_gui_dialog_runs_in_child_process(cfg, monkeypatch):
+    import subprocess as sp
+    from whatidid import prompt
+
+    seen = {}
+
+    def fake_run(cmd, **kw):
+        seen["cmd"] = cmd
+        seen["args"] = json.loads(cmd[-1])
+        return sp.CompletedProcess(cmd, 0, stdout='{"action": "save", "text": "a; b"}\n', stderr="")
+
+    monkeypatch.setattr(prompt.subprocess, "run", fake_run)
+    now = datetime.now(TZ)
+    res = prompt.ask_gui(cfg, now - timedelta(minutes=30), now, ["prev"], 600)
+    assert (res.action, res.text) == ("save", "a; b")
+    assert seen["cmd"][1:3] == ["-m", "whatidid.dialog"] and seen["args"]["last_items"] == ["prev"]
